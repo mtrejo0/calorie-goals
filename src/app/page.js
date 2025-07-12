@@ -27,7 +27,7 @@ ChartJS.register(
 );
 
 const NutritionApp = () => {
-  const [dailyCalories, setDailyCalories] = useState(2000);
+  const [dailyCalories, setDailyCalories] = useState(1600);
   const [macroSplit, setMacroSplit] = useState({
     protein: 30,
     carbs: 40,
@@ -43,6 +43,36 @@ const NutritionApp = () => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [graphXAxis, setGraphXAxis] = useState('protein');
   const [graphYAxis, setGraphYAxis] = useState('calories');
+
+  // Pre-populate plate with default foods on component mount
+  useEffect(() => {
+    const defaultPlate = [
+      {
+        id: Date.now(),
+        food: 'chicken_breast',
+        name: foodDatabase.chicken_breast.name,
+        amount: 250,
+        ...calculateNutrition('chicken_breast', 250)
+      },
+      {
+        id: Date.now() + 1,
+        food: 'potato',
+        name: foodDatabase.potato.name,
+        amount: 150,
+        ...calculateNutrition('potato', 150)
+      }
+    ];
+    setCurrentPlate(defaultPlate);
+  }, []);
+
+  // Generate variations when currentPlate changes and has items
+  useEffect(() => {
+    if (currentPlate.length > 0) {
+      const variations = generateRecipeVariations();
+      setRecipes(variations);
+      setShowRecipes(true);
+    }
+  }, [currentPlate]);
 
   // Calculate nutrition for a food item
   const calculateNutrition = (foodKey, amount) => {
@@ -193,6 +223,36 @@ const NutritionApp = () => {
   const totalNutrition = calculateTotalNutrition();
   const targetMacros = calculateTargetMacros();
 
+  // Color mapping for different protein categories
+  const proteinColors = {
+    'chicken_breast': 'rgba(255, 99, 132, 0.8)',    // Pink
+    'salmon': 'rgba(54, 162, 235, 0.8)',            // Blue
+    'beef_sirloin': 'rgba(255, 159, 64, 0.8)',      // Orange
+    'turkey_breast': 'rgba(75, 192, 192, 0.8)',     // Teal
+    'cod': 'rgba(153, 102, 255, 0.8)',              // Purple
+    'tuna': 'rgba(255, 205, 86, 0.8)',              // Yellow
+    'eggs': 'rgba(255, 99, 132, 0.8)',              // Pink
+    'tofu': 'rgba(201, 203, 207, 0.8)',             // Gray
+    'greek_yogurt': 'rgba(54, 162, 235, 0.8)',      // Blue
+    'cottage_cheese': 'rgba(255, 159, 64, 0.8)',    // Orange
+    'shrimp': 'rgba(255, 20, 147, 0.8)',            // Dark Pink
+    'default': 'rgba(59, 130, 246, 0.6)'            // Default blue
+  };
+
+  // Helper function to get the primary protein color for a recipe
+  const getRecipeProteinColor = (recipe) => {
+    // Find the first protein item in the recipe
+    const proteinItem = recipe.items.find(item => 
+      foodDatabase[item.food].category === 'protein'
+    );
+    
+    if (proteinItem) {
+      return proteinColors[proteinItem.food] || proteinColors.default;
+    }
+    
+    return proteinColors.default;
+  };
+
   // Prepare data for the graph
   const chartData = showRecipes && recipes.length > 0 ? {
     datasets: [
@@ -201,13 +261,14 @@ const NutritionApp = () => {
         data: recipes.map(recipe => ({
           x: recipe.totalNutrition[graphXAxis],
           y: recipe.totalNutrition[graphYAxis],
-          label: recipe.name
+          label: recipe.name,
+          color: getRecipeProteinColor(recipe)
         })),
-        backgroundColor: 'rgba(59, 130, 246, 0.6)',
-        borderColor: 'rgba(59, 130, 246, 1)',
+        backgroundColor: recipes.map(recipe => getRecipeProteinColor(recipe)),
+        borderColor: recipes.map(recipe => getRecipeProteinColor(recipe).replace('0.8', '1')),
         borderWidth: 1,
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        pointRadius: 6,
+        pointHoverRadius: 8,
       },
       {
         label: 'Original Recipe',
@@ -219,8 +280,8 @@ const NutritionApp = () => {
         backgroundColor: 'rgba(239, 68, 68, 0.8)',
         borderColor: 'rgba(239, 68, 68, 1)',
         borderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 8,
+        pointRadius: 8,
+        pointHoverRadius: 10,
       }
     ],
   } : null;
@@ -230,6 +291,49 @@ const NutritionApp = () => {
     plugins: {
       legend: {
         position: 'top',
+        labels: {
+          generateLabels: function(chart) {
+            const labels = [];
+            const uniqueProteins = new Set();
+            
+            // Collect unique proteins from recipes
+            recipes.forEach(recipe => {
+              const proteinItem = recipe.items.find(item => 
+                foodDatabase[item.food].category === 'protein'
+              );
+              if (proteinItem) {
+                uniqueProteins.add(proteinItem.food);
+              }
+            });
+            
+            // Create legend labels for each protein type
+            uniqueProteins.forEach(proteinKey => {
+              const food = foodDatabase[proteinKey];
+              if (food) {
+                labels.push({
+                  text: food.name,
+                  fillStyle: proteinColors[proteinKey] || proteinColors.default,
+                  strokeStyle: proteinColors[proteinKey] || proteinColors.default,
+                  lineWidth: 0,
+                  hidden: false,
+                  index: labels.length
+                });
+              }
+            });
+            
+            // Add original recipe legend
+            labels.push({
+              text: 'Your Original Recipe',
+              fillStyle: 'rgba(239, 68, 68, 0.8)',
+              strokeStyle: 'rgba(239, 68, 68, 1)',
+              lineWidth: 0,
+              hidden: false,
+              index: labels.length
+            });
+            
+            return labels;
+          }
+        }
       },
       title: {
         display: true,
@@ -477,17 +581,6 @@ const NutritionApp = () => {
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Current Plate</h2>
-            <button
-              onClick={() => {
-                setRecipes(generateRecipeVariations());
-                setShowRecipes(true);
-              }}
-              disabled={currentPlate.length === 0}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Calculator className="h-4 w-4" />
-              Generate Variations
-            </button>
           </div>
           
           {currentPlate.length === 0 ? (

@@ -12,6 +12,7 @@
   "cottage_cheese": { "name": "Cottage Cheese", "calories": 98, "protein": 11, "carbs": 3.4, "fat": 4.3, "category": "protein" },
   "ground_beef_80_20": { "name": "Ground Beef 80/20 (cooked)", "calories": 290, "protein": 20, "carbs": 0, "fat": 20, "category": "protein" },
   "ground_beef_90_10": { "name": "Ground Beef 90/10 (cooked)", "calories": 230, "protein": 23, "carbs": 0, "fat": 11, "category": "protein" },
+  "shrimp": { "name": "Shrimp (cooked)", "calories": 85, "protein": 20, "carbs": 0, "fat": 1.1, "category": "protein" },
   
   "white_rice": { "name": "White Rice", "calories": 130, "protein": 2.7, "carbs": 28, "fat": 0.3, "category": "carbs" },
   "brown_rice": { "name": "Brown Rice", "calories": 123, "protein": 2.6, "carbs": 23, "fat": 0.9, "category": "carbs" },
