@@ -542,7 +542,7 @@ const NutritionApp = () => {
             <Target className="text-blue-600" />
             Calorie Goals
           </h1>
-          <p className="text-gray-600">Smart nutrition planning with algorithmic recipe variations</p>
+          <p className="text-gray-600">Precision nutrition planning with smart recipe variations</p>
         </div>
 
         {/* BMR Calculator */}
