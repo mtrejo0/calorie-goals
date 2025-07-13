@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Search, Calculator, Target } from 'lucide-react';
+import { Plus, Trash2, Search, Calculator, Target, Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import foodDatabase from '../data/foodDatabase.json';
 
 import {
@@ -33,6 +33,7 @@ const NutritionApp = () => {
     carbs: 40,
     fat: 30
   });
+  const [macroSplitType, setMacroSplitType] = useState('cutting'); // cutting, maintenance, bulking
   const [currentPlate, setCurrentPlate] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFood, setSelectedFood] = useState('');
@@ -43,6 +44,149 @@ const NutritionApp = () => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [graphXAxis, setGraphXAxis] = useState('protein');
   const [graphYAxis, setGraphYAxis] = useState('calories');
+
+  // BMR Calculator state
+  const [bmrData, setBmrData] = useState({
+    weight: 190,
+    height: 70,
+    age: 25,
+    gender: 'male',
+    activityLevel: 'moderate'
+  });
+  const [calculatedCalories, setCalculatedCalories] = useState(null);
+  const [unitSystem, setUnitSystem] = useState('imperial'); // metric or imperial
+
+  // Activity level multipliers
+  const activityMultipliers = {
+    sedentary: 1.2,      // Little or no exercise
+    light: 1.375,        // Light exercise/sports 1-3 days/week
+    moderate: 1.55,      // Moderate exercise/sports 3-5 days/week
+    active: 1.725,       // Hard exercise/sports 6-7 days a week
+    veryActive: 1.9      // Very hard exercise/sports & physical job
+  };
+
+  // Predefined macro splits for different goals
+  const macroSplits = {
+    cutting: {
+      protein: 40,  // Higher protein for muscle preservation
+      carbs: 30,    // Lower carbs for calorie deficit
+      fat: 30       // Moderate fat
+    },
+    maintenance: {
+      protein: 30,  // Balanced protein
+      carbs: 40,    // Moderate carbs
+      fat: 30       // Balanced fat
+    },
+    bulking: {
+      protein: 25,  // Lower protein percentage (but higher absolute grams)
+      carbs: 50,    // Higher carbs for energy and muscle growth
+      fat: 25       // Lower fat
+    }
+  };
+
+  // Update macro split when type changes
+  const updateMacroSplit = (type) => {
+    setMacroSplitType(type);
+    setMacroSplit(macroSplits[type]);
+  };
+
+  // Convert weight between kg and lb
+  const convertWeight = (value, fromUnit, toUnit) => {
+    if (fromUnit === toUnit) return value;
+    if (fromUnit === 'kg' && toUnit === 'lb') return value * 2.20462;
+    if (fromUnit === 'lb' && toUnit === 'kg') return value / 2.20462;
+    return value;
+  };
+
+  // Convert height between cm and in
+  const convertHeight = (value, fromUnit, toUnit) => {
+    if (fromUnit === toUnit) return value;
+    if (fromUnit === 'cm' && toUnit === 'in') return value / 2.54;
+    if (fromUnit === 'in' && toUnit === 'cm') return value * 2.54;
+    return value;
+  };
+
+  // Handle unit system change
+  const handleUnitSystemChange = (newSystem) => {
+    if (newSystem === unitSystem) return;
+    
+    setUnitSystem(newSystem);
+    
+    // Convert current values to new unit system
+    const newWeight = convertWeight(bmrData.weight, 
+      unitSystem === 'metric' ? 'kg' : 'lb', 
+      newSystem === 'metric' ? 'kg' : 'lb'
+    );
+    
+    const newHeight = convertHeight(bmrData.height, 
+      unitSystem === 'metric' ? 'cm' : 'in', 
+      newSystem === 'metric' ? 'cm' : 'in'
+    );
+    
+    setBmrData({
+      ...bmrData,
+      weight: Math.round(newWeight * 10) / 10,
+      height: Math.round(newHeight * 10) / 10
+    });
+  };
+
+  // Calculate BMR using Mifflin-St Jeor Equation
+  const calculateBMR = (weight, height, age, gender) => {
+    // Convert to metric for calculation if using imperial
+    const weightKg = unitSystem === 'imperial' ? convertWeight(weight, 'lb', 'kg') : weight;
+    const heightCm = unitSystem === 'imperial' ? convertHeight(height, 'in', 'cm') : height;
+    
+    if (gender === 'male') {
+      return (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
+    } else {
+      return (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
+    }
+  };
+
+  // Calculate maintenance calories
+  const calculateMaintenanceCalories = () => {
+    const bmr = calculateBMR(bmrData.weight, bmrData.height, bmrData.age, bmrData.gender);
+    const maintenance = bmr * activityMultipliers[bmrData.activityLevel];
+    
+    // Calculate all three targets
+    const cutting = maintenance - 500;
+    const bulking = maintenance + 500;
+    
+    // Calculate cutting options with different deficits
+    const cuttingOptions = {
+      mild: {
+        calories: Math.round(maintenance * 0.91), // 9% deficit (0.5 lb/week)
+        deficit: Math.round(maintenance * 0.09),
+        weeklyLoss: 0.5
+      },
+      moderate: {
+        calories: Math.round(maintenance * 0.82), // 18% deficit (1 lb/week)
+        deficit: Math.round(maintenance * 0.18),
+        weeklyLoss: 1.0
+      },
+      extreme: {
+        calories: Math.round(maintenance * 0.63), // 37% deficit (2 lb/week)
+        deficit: Math.round(maintenance * 0.37),
+        weeklyLoss: 2.0
+      }
+    };
+    
+    setCalculatedCalories({
+      bmr: Math.round(bmr),
+      maintenance: Math.round(maintenance),
+      cutting: Math.round(cutting),
+      bulking: Math.round(bulking),
+      cuttingOptions
+    });
+    
+    // Update daily calories with maintenance value by default
+    setDailyCalories(Math.round(maintenance));
+  };
+
+  // Calculate calories when BMR data changes
+  useEffect(() => {
+    calculateMaintenanceCalories();
+  }, [bmrData]);
 
   // Pre-populate plate with default foods on component mount
   useEffect(() => {
@@ -401,6 +545,159 @@ const NutritionApp = () => {
           <p className="text-gray-600">Plan your meals with precision macro tracking</p>
         </div>
 
+        {/* BMR Calculator */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Calculator className="text-blue-600" />
+            BMR & Maintenance Calories Calculator
+          </h2>
+          <div className="md:col-span-2 mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Unit System
+              </label>
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => handleUnitSystemChange('metric')}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    unitSystem === 'metric'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Metric (kg/cm)
+                </button>
+                <button
+                  onClick={() => handleUnitSystemChange('imperial')}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    unitSystem === 'imperial'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Imperial (lb/in)
+                </button>
+              </div>
+            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+              </label>
+              <input
+                type="number"
+                value={bmrData.weight}
+                onChange={(e) => setBmrData({...bmrData, weight: parseFloat(e.target.value)})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Height ({unitSystem === 'metric' ? 'cm' : 'in'})
+              </label>
+              <input
+                type="number"
+                value={bmrData.height}
+                onChange={(e) => setBmrData({...bmrData, height: parseFloat(e.target.value)})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Age
+              </label>
+              <input
+                type="number"
+                value={bmrData.age}
+                onChange={(e) => setBmrData({...bmrData, age: parseInt(e.target.value)})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gender
+              </label>
+              <select
+                value={bmrData.gender}
+                onChange={(e) => setBmrData({...bmrData, gender: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Activity Level
+              </label>
+              <select
+                value={bmrData.activityLevel}
+                onChange={(e) => setBmrData({...bmrData, activityLevel: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="sedentary">Sedentary (Little or no exercise)</option>
+                <option value="light">Light (Light exercise/sports 1-3 days/week)</option>
+                <option value="moderate">Moderate (Moderate exercise/sports 3-5 days/week)</option>
+                <option value="active">Active (Hard exercise/sports 6-7 days a week)</option>
+                <option value="veryActive">Very Active (Very hard exercise/sports & physical job)</option>
+              </select>
+            </div>
+            
+          </div>
+          
+          {/* Calculated Results */}
+          {calculatedCalories && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <Activity className="text-blue-600" />
+                Calculated Results
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-white rounded-lg">
+                  <div className="text-lg font-bold text-blue-600">{calculatedCalories.bmr}</div>
+                  <div className="text-sm text-gray-600">BMR (Basal Metabolic Rate)</div>
+                  <div className="text-xs text-gray-500">Calories burned at rest</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg">
+                  <div className="text-lg font-bold text-green-600">{calculatedCalories.maintenance}</div>
+                  <div className="text-sm text-gray-600">Maintenance Calories</div>
+                  <div className="text-xs text-gray-500">With activity level</div>
+                </div>
+                                  <div className="text-center p-3 bg-white rounded-lg">
+                    <div className="text-lg font-bold text-purple-600">{calculatedCalories.cuttingOptions.mild.calories}</div>
+                    <div className="text-sm text-gray-600">Mild Weight Loss</div>
+                    <div className="text-xs text-gray-500">
+                      <span className="flex items-center justify-center gap-1"><TrendingDown className="h-3 w-3" />{calculatedCalories.cuttingOptions.mild.weeklyLoss} lb/week</span>
+                      <span className="text-gray-400">91% of maintenance</span>
+                    </div>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg">
+                    <div className="text-lg font-bold text-red-600">{calculatedCalories.cuttingOptions.moderate.calories}</div>
+                    <div className="text-sm text-gray-600">Weight Loss</div>
+                    <div className="text-xs text-gray-500">
+                      <span className="flex items-center justify-center gap-1"><TrendingDown className="h-3 w-3" />{calculatedCalories.cuttingOptions.moderate.weeklyLoss} lb/week</span>
+                      <span className="text-gray-400">82% of maintenance</span>
+                    </div>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg">
+                    <div className="text-lg font-bold text-orange-600">{calculatedCalories.cuttingOptions.extreme.calories}</div>
+                    <div className="text-sm text-gray-600">Extreme Weight Loss</div>
+                    <div className="text-xs text-gray-500">
+                      <span className="flex items-center justify-center gap-1"><TrendingDown className="h-3 w-3" />{calculatedCalories.cuttingOptions.extreme.weeklyLoss} lb/week</span>
+                      <span className="text-gray-400">63% of maintenance</span>
+                    </div>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg">
+                    <div className="text-lg font-bold text-green-600">{calculatedCalories.bulking}</div>
+                    <div className="text-sm text-gray-600">Bulking Calories</div>
+                    <div className="text-xs text-gray-500">
+                      <span className="flex items-center justify-center gap-1"><TrendingUp className="h-3 w-3" />500 cal surplus</span>
+                    </div>
+                  </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Daily Goals */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Daily Goals</h2>
@@ -418,36 +715,42 @@ const NutritionApp = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Macro Split (%)
+                Macro Split Type
               </label>
               <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-xs text-gray-600">Protein</label>
-                  <input
-                    type="number"
-                    value={macroSplit.protein}
-                    onChange={(e) => setMacroSplit({...macroSplit, protein: parseInt(e.target.value)})}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-600">Carbs</label>
-                  <input
-                    type="number"
-                    value={macroSplit.carbs}
-                    onChange={(e) => setMacroSplit({...macroSplit, carbs: parseInt(e.target.value)})}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-600">Fat</label>
-                  <input
-                    type="number"
-                    value={macroSplit.fat}
-                    onChange={(e) => setMacroSplit({...macroSplit, fat: parseInt(e.target.value)})}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                </div>
+                <button
+                  onClick={() => updateMacroSplit('cutting')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    macroSplitType === 'cutting'
+                      ? 'bg-red-100 text-red-700 border-2 border-red-300'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Cutting
+                  <div className="text-xs text-gray-500">40P/30C/30F</div>
+                </button>
+                <button
+                  onClick={() => updateMacroSplit('maintenance')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    macroSplitType === 'maintenance'
+                      ? 'bg-green-100 text-green-700 border-2 border-green-300'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Maintenance
+                  <div className="text-xs text-gray-500">30P/40C/30F</div>
+                </button>
+                <button
+                  onClick={() => updateMacroSplit('bulking')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    macroSplitType === 'bulking'
+                      ? 'bg-orange-100 text-orange-700 border-2 border-orange-300'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Bulking
+                  <div className="text-xs text-gray-500">25P/50C/25F</div>
+                </button>
               </div>
             </div>
           </div>
