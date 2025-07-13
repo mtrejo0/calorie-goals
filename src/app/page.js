@@ -267,8 +267,8 @@ const NutritionApp = () => {
         backgroundColor: recipes.map(recipe => getRecipeProteinColor(recipe)),
         borderColor: recipes.map(recipe => getRecipeProteinColor(recipe).replace('0.8', '1')),
         borderWidth: 1,
-        pointRadius: 6,
-        pointHoverRadius: 8,
+        pointRadius: 4,
+        pointHoverRadius: 6,
       },
       {
         label: 'Original Recipe',
@@ -277,11 +277,11 @@ const NutritionApp = () => {
           y: totalNutrition[graphYAxis],
           label: 'Your Original Recipe'
         }],
-        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-        borderColor: 'rgba(239, 68, 68, 1)',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        borderColor: 'rgba(0, 0, 0, 1)',
         borderWidth: 2,
-        pointRadius: 8,
-        pointHoverRadius: 10,
+        pointRadius: 6,
+        pointHoverRadius: 8,
       }
     ],
   } : null;
@@ -324,8 +324,8 @@ const NutritionApp = () => {
             // Add original recipe legend
             labels.push({
               text: 'Your Original Recipe',
-              fillStyle: 'rgba(239, 68, 68, 0.8)',
-              strokeStyle: 'rgba(239, 68, 68, 1)',
+              fillStyle: 'rgba(0, 0, 0, 0.8)',
+              strokeStyle: 'rgba(0, 0, 0, 1)',
               lineWidth: 0,
               hidden: false,
               index: labels.length
